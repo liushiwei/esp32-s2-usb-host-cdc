@@ -96,7 +96,7 @@ void usbh_get_device_desc_cb(uint8_t* data_buffer, size_t num_bytes, void* conte
 void usbh_set_address_cb(uint16_t addr, void* context)
 {
     ESP_LOGI("ADDRESS", "%d", addr);
-    if(ESP_OK != hcd_pipe_update(ctrl_pipe_hdl, DEVICE_ADDR, bMaxPacketSize0)) ESP_LOGE("", "failed to update ctrl pipe");
+    if(ESP_OK != hcd_pipe_update_dev_addr(ctrl_pipe_hdl, DEVICE_ADDR)) ESP_LOGE("", "failed to update ctrl pipe");
     xfer_set_configuration(1);
 }
 
@@ -191,7 +191,9 @@ void app_main(void)
 
     while(1){
         vTaskDelay(10);
+
         if(ready){
+            xfer_out_data((uint8_t*)"test\n", 5);
             ready = false;
             xfer_in_data();
         }

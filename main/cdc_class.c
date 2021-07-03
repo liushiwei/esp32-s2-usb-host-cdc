@@ -11,7 +11,7 @@
 #define EP3             2
 
 
-hcd_pipe_handle_t cdc_ep_pipe_hdl[MAX_NUM_ENDP];
+hcd_pipe_handle_t cdc_ep_pipe_hdl1,cdc_ep_pipe_hdl2,cdc_ep_pipe_hdl3;
 uint8_t *cdc_data_buffers[MAX_NUM_ENDP];
 usb_irp_t *cdc_ep_irps[MAX_NUM_ENDP];
 usb_desc_ep_t endpoints[MAX_NUM_ENDP];
@@ -104,6 +104,7 @@ static void alloc_pipe_and_xfer_reqs_cdc(hcd_port_handle_t port_hdl,
         .dev_speed = port_speed,
     };
     if(ESP_OK == hcd_pipe_alloc(port_hdl, &config, pipe_hdl)) {}
+    ESP_LOGE("", " pipe_hdl  === %p \n",pipe_hdl);
     if(NULL == pipe_hdl) {
         ESP_LOGE("", "NULL == pipe_hdl");
         return;
@@ -124,32 +125,40 @@ static void alloc_pipe_and_xfer_reqs_cdc(hcd_port_handle_t port_hdl,
 
 void cdc_create_pipe(usb_desc_ep_t* ep)
 {
+    printf("cdc_create_pipe\n");
     if(cdc_pipe_evt_queue == NULL)
         cdc_pipe_evt_queue = xQueueCreate(10, sizeof(pipe_event_msg_t));
-    if(USB_DESC_EP_GET_XFERTYPE(ep) == USB_XFER_TYPE_INTR){
+    if(USB_DESC_EP_GET_XFERTYPE(ep) == USB_BM_ATTRIBUTES_XFER_INT){
         memcpy(&endpoints[EP1], ep, sizeof(usb_desc_ep_t));
-        alloc_pipe_and_xfer_reqs_cdc(port_hdl, cdc_pipe_evt_queue, &cdc_ep_pipe_hdl[EP1], &cdc_data_buffers[EP1], &cdc_ep_irps[EP1], 1, ep);
-    } else if(USB_DESC_EP_GET_XFERTYPE(ep) == USB_XFER_TYPE_BULK && USB_DESC_EP_GET_EP_DIR(ep)){
+        ESP_LOGI("","cdc_create_pipe EP1 %p\n",&cdc_ep_pipe_hdl1);
+        alloc_pipe_and_xfer_reqs_cdc(port_hdl, cdc_pipe_evt_queue, &cdc_ep_pipe_hdl1, &cdc_data_buffers[EP1], &cdc_ep_irps[EP1], 1, ep);
+        ESP_LOGI("","cdc_create_pipe EP1 %p\n",&cdc_ep_pipe_hdl1);
+    } else if(USB_DESC_EP_GET_XFERTYPE(ep) == USB_BM_ATTRIBUTES_XFER_BULK && USB_DESC_EP_GET_EP_DIR(ep)){
         memcpy(&endpoints[EP2], ep, sizeof(usb_desc_ep_t));
-        alloc_pipe_and_xfer_reqs_cdc(port_hdl, cdc_pipe_evt_queue, &cdc_ep_pipe_hdl[EP2], &cdc_data_buffers[EP2], &cdc_ep_irps[EP2], 1, ep);
+        ESP_LOGI("","cdc_create_pipe EP2 %p\n",&cdc_ep_pipe_hdl2);
+        alloc_pipe_and_xfer_reqs_cdc(port_hdl, cdc_pipe_evt_queue, &cdc_ep_pipe_hdl2, &cdc_data_buffers[EP2], &cdc_ep_irps[EP2], 1, ep);
+        ESP_LOGI("","cdc_create_pipe EP2 %p\n",&cdc_ep_pipe_hdl2);
     } else {
         memcpy(&endpoints[EP3], ep, sizeof(usb_desc_ep_t));
-        alloc_pipe_and_xfer_reqs_cdc(port_hdl, cdc_pipe_evt_queue, &cdc_ep_pipe_hdl[EP3], &cdc_data_buffers[EP3], &cdc_ep_irps[EP3], 1, ep);
+        ESP_LOGI("","cdc_create_pipe EP3 %p\n",&cdc_ep_pipe_hdl3);
+        alloc_pipe_and_xfer_reqs_cdc(port_hdl, cdc_pipe_evt_queue, &cdc_ep_pipe_hdl3, &cdc_data_buffers[EP3], &cdc_ep_irps[EP3], 1, ep);
+        ESP_LOGI("","cdc_create_pipe EP3 %p\n",&cdc_ep_pipe_hdl3);
+        // ESP_LOGI("","cdc_create_pipe EP3 %p\n",*cdc_ep_pipe_hdl3);
     }
 }
 
 void delete_pipes()
 {
-    for (size_t i = 0; i < MAX_NUM_ENDP; i++)
-    {
-        if(cdc_ep_pipe_hdl[i] == NULL) continue;
-        if (HCD_PIPE_STATE_INVALID == hcd_pipe_get_state(cdc_ep_pipe_hdl[i]))
-        {                
-            ESP_LOGD("", "pipe state: %d", hcd_pipe_get_state(cdc_ep_pipe_hdl[i]));
-            free_pipe_and_xfer_reqs( cdc_ep_pipe_hdl[i], &cdc_data_buffers[i], &cdc_ep_irps[i], 1);
-            cdc_ep_pipe_hdl[i] = NULL;
-        }
-    }
+    // for (size_t i = 0; i < MAX_NUM_ENDP; i++)
+    // {
+    //     if(cdc_ep_pipe_hdl[i] == NULL) continue;
+    //     if (HCD_PIPE_STATE_INVALID == hcd_pipe_get_state(cdc_ep_pipe_hdl[i]))
+    //     {                
+    //         ESP_LOGD("", "pipe state: %d", hcd_pipe_get_state(cdc_ep_pipe_hdl[i]));
+    //         free_pipe_and_xfer_reqs( cdc_ep_pipe_hdl[i], &cdc_data_buffers[i], &cdc_ep_irps[i], 1);
+    //         cdc_ep_pipe_hdl[i] = NULL;
+    //     }
+    // }
 }
 
 void xfer_set_line_coding(uint32_t bitrate, uint8_t cf, uint8_t parity, uint8_t bits)
@@ -206,13 +215,14 @@ void xfer_set_control_line(bool dtr, bool rts)
 // ENDPOINTS
 void xfer_intr_data()
 {
+    ESP_LOGD("", "xfer_intr_data 1");
     cdc_ep_irps[EP1]->num_bytes = 8;    //1 worst case MPS
     cdc_ep_irps[EP1]->data_buffer = cdc_data_buffers[EP1];
     cdc_ep_irps[EP1]->num_iso_packets = 0;
     cdc_ep_irps[EP1]->num_bytes = 8;
 
     esp_err_t err;
-    if(ESP_OK == (err = hcd_irp_enqueue(cdc_ep_pipe_hdl[EP1], cdc_ep_irps[EP1]))) {
+    if(ESP_OK == (err = hcd_irp_enqueue(cdc_ep_pipe_hdl1, cdc_ep_irps[EP1]))) {
         ESP_LOGI("", "INT ");
     } else {
         ESP_LOGE("", "INT err: 0x%02x", err);
@@ -221,29 +231,33 @@ void xfer_intr_data()
 
 void xfer_in_data()
 {
-    ESP_LOGD("", "EP: 0x%02x", USB_DESC_EP_GET_ADDRESS(&endpoints[EP2]));
+    ESP_LOGI("", "xfer_in_data 1");
+    ESP_LOGI("", "EPIN: 0x%02x", USB_DESC_EP_GET_ADDRESS(&endpoints[EP2]));
     cdc_ep_irps[EP2]->num_bytes = bMaxPacketSize0;    //1 worst case MPS
     cdc_ep_irps[EP2]->num_iso_packets = 0;
     cdc_ep_irps[EP2]->num_bytes = 64;
-
+    ESP_LOGI("", "xfer_in_data 2");
     esp_err_t err;
-    if(ESP_OK != (err = hcd_irp_enqueue(cdc_ep_pipe_hdl[EP2], cdc_ep_irps[EP2]))) {
+    if(ESP_OK != (err = hcd_irp_enqueue(cdc_ep_pipe_hdl2, cdc_ep_irps[EP2]))) {
         ESP_LOGW("", "BULK %s, dir: %d, err: 0x%x", "IN", USB_DESC_EP_GET_EP_DIR(&endpoints[EP2]), err);
     }
+    ESP_LOGI("", "xfer_in_data 3");
 }
 
 void xfer_out_data(uint8_t* data, size_t len)
 {
-    ESP_LOGD("", "EP: 0x%02x", USB_DESC_EP_GET_ADDRESS(&endpoints[EP3]));
+    ESP_LOGI("", "xfer_out_data 1");
+    ESP_LOGI("", "EPOUT: 0x%02x", USB_DESC_EP_GET_ADDRESS(&endpoints[EP3]));
     memcpy(cdc_ep_irps[EP3]->data_buffer, data, len);
     cdc_ep_irps[EP3]->num_bytes = bMaxPacketSize0;    //1 worst case MPS
     cdc_ep_irps[EP3]->num_iso_packets = 0;
     cdc_ep_irps[EP3]->num_bytes = len;
-
+    ESP_LOGI("", "xfer_out_data 2 %p",cdc_ep_pipe_hdl3);
     esp_err_t err;
-    if(ESP_OK != (err = hcd_irp_enqueue(cdc_ep_pipe_hdl[EP3], cdc_ep_irps[EP3]))) {
+    if(ESP_OK != (err = hcd_irp_enqueue(cdc_ep_pipe_hdl3, cdc_ep_irps[EP3]))) {
         ESP_LOGW("", "BULK %s, dir: %d, err: 0x%x", "OUT", USB_DESC_EP_GET_EP_DIR(&endpoints[EP3]), err);
     }
+    ESP_LOGI("", "xfer_out_data 3");
 }
 
 void cdc_class_specific_ctrl_cb(usb_irp_t* irp)

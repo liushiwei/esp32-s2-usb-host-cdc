@@ -136,7 +136,7 @@ void parse_cfg_descriptor(uint8_t* data_buffer, usb_transfer_status_t status, ui
         uint8_t offset = 0;
         uint8_t type = *(&data_buffer[0] + offset + 1);
         do{
-            ESP_LOGD("", "type: %d, off: %d, len: %d\n", type, offset, len);
+            ESP_LOGI("", "type: %d, off: %d, len: %d\n", type, offset, len);
             switch (type)
             {
                 case USB_W_VALUE_DT_DEVICE:
@@ -202,6 +202,9 @@ void parse_cfg_descriptor(uint8_t* data_buffer, usb_transfer_status_t status, ui
                     ESP_LOG_BUFFER_HEX_LEVEL("Actual data", data_buffer, len, ESP_LOG_DEBUG);
 
                     offset += *(data_buffer + offset);
+                    if((*(data_buffer + offset))==0){
+                        offset++;
+                    }
                     break;
             }
             if(offset >= len) break;
