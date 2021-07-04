@@ -94,7 +94,9 @@ static void alloc_pipe_and_xfer_reqs_cdc(hcd_port_handle_t port_hdl,
     //We don't support hubs yet. Just get the speed of the port to determine the speed of the device
     usb_speed_t port_speed;
     if(ESP_OK == hcd_port_get_speed(port_hdl, &port_speed)){}
-
+    if(port_speed== USB_SPEED_FULL){
+        ESP_LOGE("", " port_speed  === USB_SPEED_FULL \n");
+    }
     hcd_pipe_config_t config = {
         .callback = cdc_pipe_callback,
         .callback_arg = (void *)pipe_evt_queue,
@@ -104,7 +106,7 @@ static void alloc_pipe_and_xfer_reqs_cdc(hcd_port_handle_t port_hdl,
         .dev_speed = port_speed,
     };
     if(ESP_OK == hcd_pipe_alloc(port_hdl, &config, pipe_hdl)) {}
-    ESP_LOGE("", " pipe_hdl  === %p \n",pipe_hdl);
+    ESP_LOGE("", " pipe_hdl  === %p \n",*pipe_hdl);
     if(NULL == pipe_hdl) {
         ESP_LOGE("", "NULL == pipe_hdl");
         return;
@@ -130,9 +132,9 @@ void cdc_create_pipe(usb_desc_ep_t* ep)
         cdc_pipe_evt_queue = xQueueCreate(10, sizeof(pipe_event_msg_t));
     if(USB_DESC_EP_GET_XFERTYPE(ep) == USB_BM_ATTRIBUTES_XFER_INT){
         memcpy(&endpoints[EP1], ep, sizeof(usb_desc_ep_t));
-        ESP_LOGI("","cdc_create_pipe EP1 %p\n",&cdc_ep_pipe_hdl1);
+        ESP_LOGI("","cdc_create_pipe EP1 %p\n",cdc_ep_pipe_hdl1);
         alloc_pipe_and_xfer_reqs_cdc(port_hdl, cdc_pipe_evt_queue, &cdc_ep_pipe_hdl1, &cdc_data_buffers[EP1], &cdc_ep_irps[EP1], 1, ep);
-        ESP_LOGI("","cdc_create_pipe EP1 %p\n",&cdc_ep_pipe_hdl1);
+        ESP_LOGI("","cdc_create_pipe EP1 %p\n",cdc_ep_pipe_hdl1);
     } else if(USB_DESC_EP_GET_XFERTYPE(ep) == USB_BM_ATTRIBUTES_XFER_BULK && USB_DESC_EP_GET_EP_DIR(ep)){
         memcpy(&endpoints[EP2], ep, sizeof(usb_desc_ep_t));
         ESP_LOGI("","cdc_create_pipe EP2 %p\n",&cdc_ep_pipe_hdl2);

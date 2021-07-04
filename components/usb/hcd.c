@@ -1688,30 +1688,36 @@ static void buffer_block_free(dma_buffer_block_t *buffer)
 
 static bool pipe_alloc_check_args(const hcd_pipe_config_t *pipe_config, usb_speed_t port_speed, hcd_port_fifo_bias_t fifo_bias, usb_transfer_type_t type, bool is_default_pipe)
 {
+    printf("pipe_alloc_check_args 1\n");
     //Check if pipe can be supported
     if (port_speed == USB_SPEED_LOW && pipe_config->dev_speed == USB_SPEED_FULL) {
         //Low speed port does not supported full speed pipe
         return false;
     }
+    printf("pipe_alloc_check_args 2\n");
     if (pipe_config->dev_speed == USB_SPEED_LOW && (type == USB_TRANSFER_TYPE_BULK || type == USB_TRANSFER_TYPE_ISOCHRONOUS)) {
         //Low speed does not support Bulk or Isochronous pipes
         return false;
     }
+    printf("pipe_alloc_check_args 3\n");
     //Check interval of pipe
     if (type == USB_TRANSFER_TYPE_INTR &&
         (pipe_config->ep_desc->bInterval > 0 && pipe_config->ep_desc->bInterval > 32)) {
         //Interval not supported for interrupt pipe
         return false;
     }
+    printf("pipe_alloc_check_args 4\n");
     if (type == USB_TRANSFER_TYPE_ISOCHRONOUS &&
         (pipe_config->ep_desc->bInterval > 0 && pipe_config->ep_desc->bInterval > 6)) {
         //Interval not supported for isochronous pipe (where 0 < 2^(bInterval - 1) <= 32)
         return false;
     }
+    printf("pipe_alloc_check_args 5\n");
 
     if (is_default_pipe) {
         return true;
     }
+    printf("pipe_alloc_check_args 6\n");
     //Check if MPS is within FIFO limits
     const fifo_mps_limits_t *mps_limits;
     switch (fifo_bias) {
@@ -1735,6 +1741,7 @@ static bool pipe_alloc_check_args(const hcd_pipe_config_t *pipe_config, usb_spee
             limit = mps_limits->periodic_out_mps;
         }
     }
+    printf("pipe_alloc_check_args 7\n");
     return (pipe_config->ep_desc->wMaxPacketSize <= limit);
 }
 
@@ -1811,7 +1818,7 @@ esp_err_t hcd_pipe_alloc(hcd_port_handle_t port_hdl, const hcd_pipe_config_t *pi
     hcd_port_fifo_bias_t port_fifo_bias = port->fifo_bias;
     int pipe_idx = port->num_pipes_idle + port->num_pipes_queued;
     HCD_EXIT_CRITICAL();
-
+    ESP_LOGE("", "hcd_pipe_alloc  pipe_hdl1  === %p \n",*pipe_hdl);
     usb_transfer_type_t type;
     bool is_default;
     if (pipe_config->ep_desc == NULL) {
@@ -1821,10 +1828,12 @@ esp_err_t hcd_pipe_alloc(hcd_port_handle_t port_hdl, const hcd_pipe_config_t *pi
         type = USB_DESC_EP_GET_XFERTYPE(pipe_config->ep_desc);
         is_default = false;
     }
+    
     //Check if pipe configuration can be supported
     if (!pipe_alloc_check_args(pipe_config, port_speed, port_fifo_bias, type, is_default)) {
         return ESP_ERR_NOT_SUPPORTED;
     }
+    ESP_LOGE("", "hcd_pipe_alloc  pipe_hdl 2 === %p \n",*pipe_hdl);
 
     esp_err_t ret;
     //Allocate the pipe resources
@@ -1843,6 +1852,8 @@ esp_err_t hcd_pipe_alloc(hcd_port_handle_t port_hdl, const hcd_pipe_config_t *pi
         }
     }
 
+    ESP_LOGE("", "hcd_pipe_alloc  pipe_hdl 3 === %p \n",*pipe_hdl);
+
     //Initialize pipe object
     TAILQ_INIT(&pipe->pending_irp_tailq);
     TAILQ_INIT(&pipe->done_irp_tailq);
@@ -1860,6 +1871,7 @@ esp_err_t hcd_pipe_alloc(hcd_port_handle_t port_hdl, const hcd_pipe_config_t *pi
     pipe->callback_arg = pipe_config->callback_arg;
     pipe->context = pipe_config->context;
 
+ESP_LOGE("", "hcd_pipe_alloc  pipe_hdl 4 === %p \n",*pipe_hdl);
     //Allocate channel
     HCD_ENTER_CRITICAL();
     if (!port->initialized || !port->flags.conn_devc_ena) {
@@ -1878,8 +1890,9 @@ esp_err_t hcd_pipe_alloc(hcd_port_handle_t port_hdl, const hcd_pipe_config_t *pi
     TAILQ_INSERT_TAIL(&port->pipes_idle_tailq, pipe, tailq_entry);
     port->num_pipes_idle++;
     HCD_EXIT_CRITICAL();
-
+    ESP_LOGE("", "hcd_pipe_alloc  pipe_hdl 5 === %p \n",*pipe_hdl);
     *pipe_hdl = (hcd_pipe_handle_t)pipe;
+    ESP_LOGE("", "hcd_pipe_alloc  pipe_hdl  6=== %p \n",*pipe_hdl);
     return ESP_OK;
 
 err:
